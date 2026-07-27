@@ -5,7 +5,7 @@ console.log("[three-point-callout.js] loaded");
 
 window.ThreePointCallout = (() => {
     const CFG = {
-        modelUrl: new URL("./trullo.glb", import.meta.url).href,
+        modelUrl: new URL("./trullo.glb", document.baseURI).href,
         pointLayer: "points-layer",
         minZoom: 8,
         delay: 500,
