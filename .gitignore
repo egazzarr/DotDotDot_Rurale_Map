@@ -9,7 +9,6 @@
 /3.dati_schede/1.output_png_schede/
 /3.dati_schede/2.output_images_random/
 /3.dati_schede/3.output_images_vintage
-/3.dati_schede/gaussian_tests_spz/
 
 # Node dependencies, anywhere in the repository
 node_modules/
