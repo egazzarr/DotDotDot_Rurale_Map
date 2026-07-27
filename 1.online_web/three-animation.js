@@ -3,7 +3,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 window.ThreePointCallout = (() => {
     const CFG = {
-        modelUrl: new URL("../trullo.glb", import.meta.url).href,
+        modelUrl: new URL("./trullo.glb", import.meta.url).href,
         pointLayer: "points-layer",
 
         minZoom: 9,
