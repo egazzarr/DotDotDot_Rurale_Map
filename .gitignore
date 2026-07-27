@@ -1,0 +1,19 @@
+# Offline data
+/2.offline_data/
+
+# Generated/downloaded CSV data
+/1.online_web/data/dati_schede.csv
+
+# Schede images and generated outputs
+/3.dati_schede/0.original_foto_schede/
+/3.dati_schede/1.output_png_schede/
+/3.dati_schede/2.output_images_random/
+/3.dati_schede/3.output_images_vintage
+/3.dati_schede/gaussian_tests_spz/
+
+# Node dependencies, anywhere in the repository
+node_modules/
+
+# Node/npm logs and caches
+npm-debug.log*
+.npm/
