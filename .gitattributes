@@ -1,1 +1,1 @@
-online_map/data/** filter=lfs diff=lfs merge=lfs -text
+online_map/data/dati_schede.csv filter=lfs diff=lfs merge=lfs -text
