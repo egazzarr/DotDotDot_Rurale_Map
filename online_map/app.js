@@ -25,10 +25,10 @@ const EPSG_25832 =
 const WGS84 = "EPSG:4326";
 
 const GEOJSON_FILE =
-    "./data/lat_long.json";
+    "./data/data_reduced/lat_long_23.json";
 
 const CSV_FILE =
-    "./data/dati_schede.csv";
+    "./data/data_reduced/dati_schede_23.csv";
 
 const MAP_STYLE =
     "./styles_maputnik/style_dark_black.json";

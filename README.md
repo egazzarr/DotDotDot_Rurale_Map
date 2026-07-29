@@ -1,10 +1,40 @@
-# *Abitare Rurale*
-### For DotDotDot, Milan. 
+## *Abitare Rurale*
 
-- **1.online_web** - tutto quello che serve per la versione online della mappa. Per adesso, usa solo un subset di dati, quelli che contengono info fotografiche sui dati, perche' github non supporta files .csv piu' grandi di 100MB. In "data/" ci sono sia i files sui 44363 punti, sia quelli ridotti a 432 punti. Contiene maputnik .json files per lo stile (cambia in app.js), colori per la palettes dei punti (cambia in index.html), png-manifest.json con le refs per visualizzare una foto della casa aorrispondente sulla mappa e diversi modi per visualizzaare con Three.js un modello 3D, oppure una scheda ("three-animation.js" fa apparire il trullo 3d animando le linee di contorno, "three-correct_png.js" fa apparire un'immagine della scheda corrispondente e "three-fade" fa apparire il trullo facendo un fade-in della scheda. Cambia in index.html per vedere le differenze). 
-- **2.offline_data** - dati vettoriali piatti e raster in 3d per sviluppare la mappa in locale. Solo in un file zippato perche' sono 6GB. 
-- **3.dati_schede** - analisi dati e trattamento delle schede che contengono immagini. In tutto, 44363 punti, ma solo 432 cartelle con immagini, e quiundi da visualizzare sulla mappa. Nelle cartelle, 18GB quindi molto nel gitignore. trattamento dati nei python notebooks. 
+### DotDotDot, Milano
 
+Mappa interattiva basata su **Maplibre GL** come framework di visualizzazione, con **PMTiles** per il serving dei dati - nessuna dipendenza da API esterni.
+
+L'approccio è **vector-first**: i vettori costituiscono la base cartografica, mentre un layer raster viene sovrapposto per il rendering del terreno 3D. È inoltre possibile integrare facilmente elementi 3D custom tramite **Three.js**.
+
+| Componente | Ruolo |
+|---|---|
+| Maplibre GL | Rendering della mappa (vettoriale + raster) |
+| PMTiles | Serving statico dei tile, self-hosted |
+| Three.js | Embed di elementi 3D custom |
+| Maputnik | Editing visuale dello stile della mappa |
+
+## Editing dello stile
+
+Lo stile della mappa è modificabile in modo visuale tramite Maputnik. Upload il "styles_maputnik/style_dark_black.json" qui:
+
+[Apri in Maputnik](https://maplibre.org/maputnik/?layer=3379389063%7E0#0.46/0/0)
+
+## Dati cartografici (self-hosted)
+
+Per servire i dati localmente senza dipendere da servizi esterni:
+
+- **Mappa 2D** — estratto via MapTiler Cloud
+  → [Download 2D extract](https://cloud.maptiler.com/auth/widget?next=https://data.maptiler.com/my-extracts/?bounds=-180,-90,180,90)
+
+- **Mappa 3D (terreno)** — via Mapterhorn
+  → [Download 3D data](https://mapterhorn.com/data-access/)
+  → [Visualizzatore coverage](https://mapterhorn.com/coverage/#map=3.22/41.2/13.31)
+  Consiglio la versione **low-res**: qualità più che sufficiente per il progetto.
+
+## Struttura dati
+
+- **`data/`** contiene il dataset completo: `points.csv` + `points.json`, entrambi con **44.363** punti (coppie lat/lon).
+- **`data_reduced/`** è un sottoinsieme filtrato: solo i **432** punti per cui esiste più di un'immagine associata.
 
 <p align="center">
   <img src="img.png" alt="Abitare Rurale preview" width="50%">
