@@ -1,3 +1,6 @@
+# large than 100MB
+online_map/data/dati_schede.csv
+
 # Node dependencies, anywhere in the repository
 node_modules/
 
