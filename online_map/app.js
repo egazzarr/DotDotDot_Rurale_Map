@@ -49,10 +49,10 @@ const TARGET_ID =
     "id_scheda_originale";
 
 const TARGET_CONSERVAZIONE =
-    "stcstato_di_conservazione__stccstato_di_conservazione_generale";
+    "stato_conservazione";
 
 const TARGET_PAESAGGIO =
-    "cacontesto_ambientale_naturale_paesaggistico__cabcontesto_paesaggistico";
+    "contesto_paesaggistico";
 
 
 /*
