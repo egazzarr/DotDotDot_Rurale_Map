@@ -52,15 +52,17 @@
 
     <script src="./data_palette/palette_main.js"></script>
 
-    <script
-        type="module"
-        src="./three-fade.js?v=2"
-    ></script>
+<script type="module">
+    const panel3dEnabled =
+        localStorage.getItem("map-3d-panel-enabled") !== "false";
 
-    <script
-        type="module"
-        src="./app.js"
-    ></script>
+    if (panel3dEnabled) {
+        await import("./three-fade.js?v=2");
+    }
+
+    await import("./app.js");
+</script>
+
 </body>
 
 </html>

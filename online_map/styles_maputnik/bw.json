@@ -69,7 +69,7 @@
       ],
       "layout": {"visibility": "visible"},
       "paint": {
-        "fill-color": "rgba(38, 48, 32, 1)",
+        "fill-color": "rgba(44, 42, 41, 1)",
         "fill-opacity": ["interpolate", ["linear"], ["zoom"], 8, 0, 12, 0.6]
       }
     },
@@ -86,7 +86,7 @@
       ],
       "layout": {"visibility": "visible"},
       "paint": {
-        "fill-color": "rgba(38, 48, 32, 1)",
+        "fill-color": "rgba(44, 42, 41, 1)",
         "fill-opacity": [
           "interpolate",
           ["exponential", 0.6],
@@ -126,7 +126,7 @@
         ["match", ["geometry-type"], ["MultiPolygon", "Polygon"], true, false],
         ["!=", ["get", "brunnel"], "tunnel"]
       ],
-      "paint": {"fill-antialias": true, "fill-color": "rgba(120, 115, 112, 1)"}
+      "paint": {"fill-antialias": true, "fill-color": "rgba(128, 120, 115, 1)"}
     },
     {
       "id": "waterway",
@@ -140,7 +140,7 @@
         true,
         false
       ],
-      "paint": {"line-color": "rgba(120, 115, 112, 1)", "line-width": 1}
+      "paint": {"line-color": "rgba(128, 120, 115, 1)", "line-width": 1}
     },
     {
       "id": "hills",
@@ -148,10 +148,11 @@
       "source": "hillshadeSource",
       "layout": {"visibility": "visible"},
       "paint": {
-        "hillshade-shadow-color": ["rgba(120, 115, 112, 1)"],
-        "hillshade-highlight-color": ["rgba(74, 71, 69, 1)"],
+        "hillshade-shadow-color": ["rgba(44, 42, 41, 1)"],
+        "hillshade-highlight-color": ["rgba(242, 241, 240, 1)"],
         "hillshade-exaggeration": 0.5,
-        "hillshade-accent-color": "rgba(38, 48, 32, 1)"
+        "hillshade-accent-color": "rgba(242, 241, 240, 1)",
+        "hillshade-method": "combined"
       }
     },
     {
@@ -163,8 +164,8 @@
       "maxzoom": 24,
       "paint": {
         "fill-antialias": true,
-        "fill-color": "rgba(234, 192, 192, 1)",
-        "fill-outline-color": "rgba(234, 192, 192, 1)"
+        "fill-color": "rgba(234, 192, 192, 0.62)",
+        "fill-outline-color": "rgba(234, 192, 192, 0)"
       }
     },
     {
@@ -268,6 +269,96 @@
           30
         ],
         "line-opacity": 0
+      }
+    },
+    {
+      "id": "place_city_town_labels",
+      "type": "symbol",
+      "source": "openmaptiles",
+      "source-layer": "place",
+      "minzoom": 3,
+      "maxzoom": 24,
+      "filter": [
+        "all",
+        ["==", ["geometry-type"], "Point"],
+        ["match", ["get", "class"], ["city", "town"], true, false]
+      ],
+      "layout": {
+        "visibility": "none",
+        "text-field": ["coalesce", ["get", "name:it"], ["get", "name"]],
+        "text-font": ["Noto Sans Regular"],
+        "text-size": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          4,
+          11,
+          8,
+          14,
+          12,
+          18,
+          16,
+          23
+        ],
+        "text-letter-spacing": 0.05,
+        "text-max-width": 10,
+        "text-padding": 5,
+        "text-allow-overlap": false,
+        "text-ignore-placement": false,
+        "symbol-sort-key": ["coalesce", ["get", "rank"], 99]
+      },
+      "paint": {
+        "text-color": "rgba(242, 241, 240, 1)",
+        "text-halo-color": "rgba(44, 42, 41, 0.95)",
+        "text-halo-width": 1.5,
+        "text-halo-blur": 0.5
+      }
+    },
+    {
+      "id": "place_village_hamlet_labels",
+      "type": "symbol",
+      "source": "openmaptiles",
+      "source-layer": "place",
+      "minzoom": 8,
+      "maxzoom": 24,
+      "filter": [
+        "all",
+        ["==", ["geometry-type"], "Point"],
+        [
+          "match",
+          ["get", "class"],
+          ["village", "hamlet", "isolated_dwelling"],
+          true,
+          false
+        ]
+      ],
+      "layout": {
+        "visibility": "none",
+        "text-field": ["coalesce", ["get", "name:it"], ["get", "name"]],
+        "text-font": ["Noto Sans Regular"],
+        "text-size": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          8,
+          10,
+          12,
+          13,
+          16,
+          16
+        ],
+        "text-letter-spacing": 0.03,
+        "text-max-width": 9,
+        "text-padding": 3,
+        "text-allow-overlap": false,
+        "text-ignore-placement": false,
+        "symbol-sort-key": ["coalesce", ["get", "rank"], 99]
+      },
+      "paint": {
+        "text-color": "rgba(234, 192, 192, 1)",
+        "text-halo-color": "rgba(44, 42, 41, 0.95)",
+        "text-halo-width": 1.25,
+        "text-halo-blur": 0.5
       }
     }
   ],

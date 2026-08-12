@@ -19,7 +19,7 @@ Lo stile della mappa è modificabile in modo visuale tramite Maputnik. Upload il
 
 [Apri in Maputnik](https://maplibre.org/maputnik/?layer=3379389063%7E0#0.46/0/0)
 
-## Dati cartografici (self-hosted)
+## Dati locali
 
 Per servire i dati localmente senza dipendere da servizi esterni:
 
@@ -30,11 +30,6 @@ Per servire i dati localmente senza dipendere da servizi esterni:
   → [Download 3D data](https://mapterhorn.com/data-access/)
   → [Visualizzatore coverage](https://mapterhorn.com/coverage/#map=3.22/41.2/13.31)
   Consiglio la versione **low-res**: qualità più che sufficiente per il progetto.
-
-## Struttura dati
-
-- **`data/`** contiene il dataset completo: `points.csv` + `points.json`, entrambi con **44.363** punti (coppie lat/lon).
-- **`data_reduced/`** è un sottoinsieme filtrato: solo i **432** punti per cui esiste più di un'immagine associata.
 
 <p align="center">
   <img src="img.png" alt="Abitare Rurale preview" width="50%">
