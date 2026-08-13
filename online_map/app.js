@@ -199,6 +199,36 @@ const COLORS = {
 const STYLE_SETTINGS_KEY =
     "map-point-style-settings";
 
+    const BASE_COLOR_SETTINGS_KEY =
+    "map-base-color-settings";
+
+const BASE_COLOR_TARGETS = [
+    {
+        layerId: "baseColor",
+        paintProp: "background-color",
+        suffix: "base",
+        label: "Colore base"
+    },
+    {
+        layerId: "hills",
+        paintProp: "hillshade-shadow-color",
+        suffix: "hillshade-shadow",
+        label: "Hillshade ombra"
+    },
+    {
+        layerId: "hills",
+        paintProp: "hillshade-highlight-color",
+        suffix: "hillshade-highlight",
+        label: "Hillshade luce"
+    },
+    {
+        layerId: "hills",
+        paintProp: "hillshade-accent-color",
+        suffix: "hillshade-accent",
+        label: "Hillshade accento"
+    }
+];
+
 const PANEL_3D_SETTINGS_KEY =
     "map-3d-panel-enabled";
 
@@ -938,6 +968,100 @@ function applyPointStyle() {
     }
 }
 
+function getBaseColorValue(target) {
+    if (!map.getLayer(target.layerId)) {
+        return "#000000";
+    }
+
+    let value =
+        map.getPaintProperty(
+            target.layerId,
+            target.paintProp
+        );
+
+    /*
+     * Defensive: some style files wrap a plain
+     * color string in an array by mistake.
+     */
+    if (Array.isArray(value)) {
+        value = value[0];
+    }
+
+    return (
+        normalizeHexColor(value) ||
+        "#000000"
+    );
+}
+
+
+function setBaseColorValue(target, color) {
+    if (!map.getLayer(target.layerId)) {
+        return;
+    }
+
+    map.setPaintProperty(
+        target.layerId,
+        target.paintProp,
+        color
+    );
+}
+
+
+function saveBaseColorSettings() {
+    try {
+        const values = {};
+
+        BASE_COLOR_TARGETS.forEach(target => {
+            values[target.paintProp] =
+                getBaseColorValue(target);
+        });
+
+        localStorage.setItem(
+            BASE_COLOR_SETTINGS_KEY,
+            JSON.stringify(values)
+        );
+    } catch (error) {
+        console.warn(
+            "[Base color settings not saved]",
+            error
+        );
+    }
+}
+
+
+function loadSavedBaseColorSettings() {
+    try {
+        const saved =
+            JSON.parse(
+                localStorage.getItem(
+                    BASE_COLOR_SETTINGS_KEY
+                ) || "null"
+            );
+
+        if (!saved) {
+            return;
+        }
+
+        BASE_COLOR_TARGETS.forEach(target => {
+            const color =
+                normalizeHexColor(
+                    saved[target.paintProp]
+                );
+
+            if (color) {
+                setBaseColorValue(
+                    target,
+                    color
+                );
+            }
+        });
+    } catch (error) {
+        console.warn(
+            "[Base color settings not loaded]",
+            error
+        );
+    }
+}
 
 /*
  * =========================================================
@@ -1001,9 +1125,64 @@ function setPointShape(shape) {
 
 function bindStyleControls() {
     loadSavedStyleSettings();
+    loadSavedBaseColorSettings();
     createStyleControls();
 
-    const bindNumber = (
+    const bindBaseMapColor = target => {
+        const picker =
+            document.getElementById(
+                `ctrl-color-${target.suffix}`
+            );
+
+        const text =
+            document.getElementById(
+                `ctrl-color-${target.suffix}-text`
+            );
+
+        if (!picker || !text) {
+            return;
+        }
+
+        const update = value => {
+            const color =
+                normalizeHexColor(value);
+
+            if (!color) {
+                text.classList.add(
+                    "style-control-invalid"
+                );
+                return;
+            }
+
+            text.classList.remove(
+                "style-control-invalid"
+            );
+
+            picker.value = color;
+            text.value = color.toUpperCase();
+
+            setBaseColorValue(target, color);
+            saveBaseColorSettings();
+        };
+
+        picker.addEventListener("input", () =>
+            update(picker.value)
+        );
+
+        text.addEventListener("input", () => {
+            if (normalizeHexColor(text.value)) {
+                update(text.value);
+            } else {
+                text.classList.add(
+                    "style-control-invalid"
+                );
+            }
+        });
+    };
+
+    BASE_COLOR_TARGETS.forEach(bindBaseMapColor);
+
+const bindNumber = (
         id,
         setter,
         minimum,
@@ -1323,6 +1502,14 @@ function createStyleControls() {
             "non-disp",
             COLORS["non disponibile"]
         )}
+
+        ${BASE_COLOR_TARGETS.map(target =>
+            colorControl(
+                target.label,
+                target.suffix,
+                getBaseColorValue(target)
+            )
+        ).join("")}
     `;
 
     document.body.appendChild(
