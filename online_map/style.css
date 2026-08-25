@@ -72,7 +72,7 @@ body {
  * Filter panel
  */
 
-#filter-panel {
+.filter-panel {
     position: absolute;
     z-index: 10;
     top: 20px;
@@ -83,22 +83,25 @@ body {
     border-radius: 0;
     color: var(--ui-text);
     background: var(--ui-background);
-    
 }
 
-#filter-panel label {
+.filter-panel--edificio {
+    left: 280px; /* 20px + 240px width + 20px gap */
+}
+
+.filter-panel label {
     display: block;
     margin-bottom: 6px;
 
     color: var(--ui-text);
     font-size: 10px;
     font-weight: 500;
-   
+
     letter-spacing: 0.04em;
     text-transform: uppercase;
 }
 
-#filter-panel select {
+.filter-panel select {
     width: 100%;
     min-height: 28px;
     padding: 5px 24px 5px 6px;
@@ -116,12 +119,12 @@ body {
     -webkit-appearance: none;
 }
 
-#filter-panel select:focus {
+.filter-panel select:focus {
     outline: 1px solid var(--ui-text);
     outline-offset: 2px;
 }
 
-#filter-panel option {
+.filter-panel option {
     color: var(--ui-text);
     background: var(--ui-background);
 }
@@ -201,7 +204,7 @@ body {
     right: 12px;
     z-index: 10;
 
-    width: 230px;
+    width: 280px;
     padding: 10px 12px;
     box-sizing: border-box;
 
@@ -233,7 +236,7 @@ body {
 
 #point-style-controls label {
     display: grid;
-    grid-template-columns: 1fr 76px;
+    grid-template-columns: 1fr 132px;
     align-items: center;
     gap: 6px;
     margin: 4px 0;
@@ -275,11 +278,17 @@ body {
     border-radius: 0;
 }
 
+/*
+ * Color rows have 2 fields (swatch + hex text).
+ * Rows for buono/medio/pessimo/non disponibile add a
+ * 3rd field (opacity), so this grid needs a 3rd column
+ * to give it real space instead of being squeezed away.
+ */
 #point-style-controls .style-color-fields {
     display: grid;
-    grid-template-columns: 20px minmax(0, 1fr);
+    grid-template-columns: 20px minmax(0, 1fr) 42px;
     gap: 4px;
-    width: 76px;
+    width: 132px;
     min-width: 0;
 }
 

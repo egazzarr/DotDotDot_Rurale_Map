@@ -25,7 +25,8 @@
     {
         "imports": {
             "three": "https://unpkg.com/three@0.180.0/build/three.module.js",
-            "three/addons/": "https://unpkg.com/three@0.180.0/examples/jsm/"
+            "three/addons/": "https://unpkg.com/three@0.180.0/examples/jsm/",
+            "@sparkjsdev/spark": "https://sparkjs.dev/releases/spark/2.1.0/spark.module.js"
         }
     }
     </script>
@@ -36,7 +37,7 @@
 
    
 
-    <div id="filter-panel">
+    <div id="filter-panel-paesaggio" class="filter-panel">
         <label for="filter-paesaggio">
             Contesto paesaggistico
         </label>
@@ -46,18 +47,27 @@
         </select>
     </div>
 
+    <div id="filter-panel-edificio" class="filter-panel filter-panel--edificio">
+        <label for="filter-edificio">
+            Tipologia edificio
+        </label>
+
+        <select id="filter-edificio">
+            <option value="">Tutti</option>
+        </select>
+    </div>
+
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.11.0/proj4.js"></script>
-
-    <script src="./data_palette/palette_main.js"></script>
 
 <script type="module">
     const panel3dEnabled =
         localStorage.getItem("map-3d-panel-enabled") !== "false";
 
     if (panel3dEnabled) {
-        await import("./three-fade.js?v=2");
+        await import("./three-spark-gaussian2.js?v=2");
     }
 
     await import("./app.js");

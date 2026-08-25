@@ -73,6 +73,24 @@ let POINT_SHAPE =
 
 /*
  * =========================================================
+ * SAVED MAP TRANSPARENCY
+ * =========================================================
+ */
+
+const MAP_TRANSPARENT_SETTINGS_KEY =
+    "map-transparent-background";
+
+const TRANSPARENT_BACKGROUND_COLOR =
+    "#F2F1F0";
+
+let MAP_TRANSPARENT =
+    localStorage.getItem(
+        MAP_TRANSPARENT_SETTINGS_KEY
+    ) === "true";
+
+
+/*
+ * =========================================================
  * CSV COLUMN NAMES
  * =========================================================
  */
@@ -85,6 +103,24 @@ const TARGET_CONSERVAZIONE =
 
 const TARGET_PAESAGGIO =
     "contesto_paesaggistico";
+
+const TIPOLOGIA_EDIFICIO =
+    "tipologia_edificio";
+
+const TARGET_CATEGORIA_EDIFICIO =
+    "categoria_edificio";
+
+const TARGET_REGIONE =
+    "regione";
+
+const TARGET_COMUNE =
+    "comune";
+
+const TARGET_SIGLA_PROVINCIA =
+    "sigla_provincia";
+
+const TARGET_PERIODO_CRONOLOGICO =
+    "periodo_cronologico";
 
 
 /*
@@ -186,14 +222,29 @@ let DOT_RADIUS_AT_MIN_ZOOM = 1;
 let DOT_RADIUS_AT_MAX_ZOOM = 8;
 
 let CIRCLE_BLUR = 0.7;
-let OPACITY_DEFAULT = 0.9;
-let OPACITY_NON_DISPONIBILE = 0.8;
 
 const COLORS = {
     buono: "#7380A6",
     medio: "#FFCD8E",
     pessimo: "#EC8553",
     "non disponibile": "#807670"
+};
+
+/*
+ * Per-category opacity (0 = invisible, 1 = fully opaque).
+ * Kept separate from COLORS because the native
+ * <input type="color"> picker cannot show or edit an
+ * alpha channel — this is the "opacity" knob instead.
+ *
+ * To show ONLY "pessimo" points, set buono / medio /
+ * "non disponibile" to 0 and pessimo to whatever you like
+ * (e.g. 1) using the sliders in the panel.
+ */
+const OPACITIES = {
+    buono: 0.9,
+    medio: 0.9,
+    pessimo: 0.9,
+    "non disponibile": 0.8
 };
 
 const STYLE_SETTINGS_KEY =
@@ -220,12 +271,6 @@ const BASE_COLOR_TARGETS = [
         paintProp: "hillshade-highlight-color",
         suffix: "hillshade-highlight",
         label: "Hillshade luce"
-    },
-    {
-        layerId: "hills",
-        paintProp: "hillshade-accent-color",
-        suffix: "hillshade-accent",
-        label: "Hillshade accento"
     }
 ];
 
@@ -280,10 +325,47 @@ map.on(
             "[app.js] map loaded"
         );
 
+        captureOriginalLayerVisibility();
         bindStyleControls();
         loadData();
     }
 );
+
+
+/*
+ * =========================================================
+ * REMEMBER THE STYLE'S OWN LAYER VISIBILITY
+ * =========================================================
+ *
+ * Some layers in the JSON style are intentionally hidden
+ * from the start (e.g. place labels, park). We record that
+ * here so "sfondo trasparente" can restore the correct
+ * state instead of forcing everything to visible.
+ */
+
+const originalLayerVisibility =
+    new Map();
+
+function captureOriginalLayerVisibility() {
+    const style =
+        map.getStyle();
+
+    if (!style || !style.layers) {
+        return;
+    }
+
+    style.layers.forEach(layer => {
+        const visibility =
+            (layer.layout &&
+                layer.layout.visibility) ||
+            "visible";
+
+        originalLayerVisibility.set(
+            layer.id,
+            visibility
+        );
+    });
+}
 
 
 /*
@@ -386,6 +468,12 @@ function createMapData(
         return;
     }
 
+    if (!csvKeys.edificio) {
+        console.warn(
+            "Colonna tipologia_edificio non trovata nel CSV."
+        );
+    }
+
     const rowsById =
         new Map();
 
@@ -475,6 +563,34 @@ function createMapData(
                     ] ||
                     rawPaesaggio;
 
+                const rawEdificio =
+                    cleanValue(
+                        csvRow[
+                            csvKeys.edificio
+                        ]
+                    ).toLowerCase();
+
+                const categoriaEdificio =
+                    cleanValue(csvRow[csvKeys.categoriaEdificio]);
+
+                const tipologiaEdificio =
+                    cleanValue(csvRow[csvKeys.edificio]);
+
+                const regione =
+                    cleanValue(csvRow[csvKeys.regione]);
+
+                const comune =
+                    cleanValue(csvRow[csvKeys.comune]);
+
+                const siglaProvincia =
+                    cleanValue(csvRow[csvKeys.siglaProvincia]);
+
+                const periodoCronologico =
+                    cleanValue(csvRow[csvKeys.periodoCronologico]);
+                
+                const titolo =
+                    cleanValue(csvRow["titolo"]);
+
                 return {
                     type: "Feature",
 
@@ -489,15 +605,17 @@ function createMapData(
 
                     properties: {
                         id,
+                        conservazione: CATEGORY_MAP[rawConservazione] || "non disponibile",
+                        paesaggio: paesaggioRaggruppato,
+                        edificio: rawEdificio, // lowercase, used by the filter dropdown
 
-                        conservazione:
-                            CATEGORY_MAP[
-                                rawConservazione
-                            ] ||
-                            "non disponibile",
-
-                        paesaggio:
-                            paesaggioRaggruppato
+                        categoriaEdificio,
+                        tipologiaEdificio,
+                        regione,
+                        comune,
+                        siglaProvincia,
+                        periodoCronologico, 
+                        titolo
                     }
                 };
             })
@@ -523,6 +641,10 @@ function createMapData(
         features
     );
 
+    createBuildingTypeFilter(
+        features
+    );
+
     initializeThreeCallout(
         features
     );
@@ -539,45 +661,31 @@ function findCsvKeys(firstRow) {
     const result = {
         id: "",
         conservazione: "",
-        paesaggio: ""
+        paesaggio: "",
+        edificio: "",
+        categoriaEdificio: "",
+        regione: "",
+        comune: "",
+        siglaProvincia: "",
+        periodoCronologico: "", 
+        titolo: ""
     };
 
     Object.keys(firstRow)
         .forEach(key => {
             const normalized =
-                key
-                    .trim()
-                    .toLowerCase();
+                key.trim().toLowerCase();
 
-            if (
-                normalized.includes(
-                    TARGET_ID
-                        .toLowerCase()
-                )
-            ) {
-                result.id =
-                    key;
-            }
-
-            if (
-                normalized.includes(
-                    TARGET_CONSERVAZIONE
-                        .toLowerCase()
-                )
-            ) {
-                result.conservazione =
-                    key;
-            }
-
-            if (
-                normalized.includes(
-                    TARGET_PAESAGGIO
-                        .toLowerCase()
-                )
-            ) {
-                result.paesaggio =
-                    key;
-            }
+            if (normalized.includes(TARGET_ID.toLowerCase())) result.id = key;
+            if (normalized.includes(TARGET_CONSERVAZIONE.toLowerCase())) result.conservazione = key;
+            if (normalized.includes(TARGET_PAESAGGIO.toLowerCase())) result.paesaggio = key;
+            if (normalized.includes(TIPOLOGIA_EDIFICIO.toLowerCase())) result.edificio = key;
+            if (normalized.includes(TARGET_CATEGORIA_EDIFICIO.toLowerCase())) result.categoriaEdificio = key;
+            if (normalized.includes(TARGET_REGIONE.toLowerCase())) result.regione = key;
+            if (normalized.includes(TARGET_COMUNE.toLowerCase())) result.comune = key;
+            if (normalized.includes(TARGET_SIGLA_PROVINCIA.toLowerCase())) result.siglaProvincia = key;
+            if (normalized.includes(TARGET_PERIODO_CRONOLOGICO.toLowerCase())) result.periodoCronologico = key;
+            if (normalized.includes("titolo")) result.titolo = key;
         });
 
     return result;
@@ -641,10 +749,16 @@ function createOpacityExpression() {
         "match",
         ["get", "conservazione"],
 
-        "non disponibile",
-        OPACITY_NON_DISPONIBILE,
+        "buono",
+        OPACITIES.buono,
 
-        OPACITY_DEFAULT
+        "medio",
+        OPACITIES.medio,
+
+        "pessimo",
+        OPACITIES.pessimo,
+
+        OPACITIES["non disponibile"]
     ];
 }
 
@@ -1065,6 +1179,109 @@ function loadSavedBaseColorSettings() {
 
 /*
  * =========================================================
+ * MAP TRANSPARENCY (POINTS ONLY)
+ * =========================================================
+ */
+
+function getBaseMapBackgroundColor() {
+    try {
+        const saved =
+            JSON.parse(
+                localStorage.getItem(
+                    BASE_COLOR_SETTINGS_KEY
+                ) || "null"
+            );
+
+        const color =
+            saved &&
+            normalizeHexColor(
+                saved["background-color"]
+            );
+
+        if (color) {
+            return color;
+        }
+    } catch (error) {
+        console.warn(
+            "[Base color settings not read]",
+            error
+        );
+    }
+
+    return "#2C2A29";
+}
+
+
+function setMapTransparent(transparent) {
+    MAP_TRANSPARENT =
+        transparent;
+
+    localStorage.setItem(
+        MAP_TRANSPARENT_SETTINGS_KEY,
+        String(transparent)
+    );
+
+    const style =
+        map.getStyle();
+
+    if (style && style.layers) {
+        style.layers.forEach(layer => {
+            if (
+                layer.id === POINT_LAYER ||
+                layer.id === SQUARE_LAYER ||
+                layer.id === "baseColor"
+            ) {
+                return;
+            }
+
+            map.setLayoutProperty(
+                layer.id,
+                "visibility",
+
+                transparent
+                    ? "none"
+                    : (originalLayerVisibility.get(layer.id) ||
+                        "visible")
+            );
+        });
+    }
+
+    if (
+        map.getLayer(
+            "baseColor"
+        )
+    ) {
+        map.setPaintProperty(
+            "baseColor",
+            "background-color",
+
+            transparent
+                ? TRANSPARENT_BACKGROUND_COLOR
+                : getBaseMapBackgroundColor()
+        );
+    }
+
+    /*
+     * Keep the checkbox (if already rendered)
+     * in sync with the current state.
+     */
+    const checkbox =
+        document.getElementById(
+            "ctrl-transparent-bg"
+        );
+
+    if (
+        checkbox &&
+        checkbox.checked !== transparent
+    ) {
+        checkbox.checked =
+            transparent;
+    }
+}
+
+
+/*
+ * =========================================================
  * SWITCH BETWEEN CIRCLES AND SQUARES
  * =========================================================
  */
@@ -1127,6 +1344,14 @@ function bindStyleControls() {
     loadSavedStyleSettings();
     loadSavedBaseColorSettings();
     createStyleControls();
+
+    /*
+     * Apply the saved transparency state right away,
+     * so a reload keeps whatever the user last picked.
+     */
+    setMapTransparent(
+        MAP_TRANSPARENT
+    );
 
     const bindBaseMapColor = target => {
         const picker =
@@ -1311,6 +1536,44 @@ const bindNumber = (
                 }
             }
         );
+
+
+        const opacityInput =
+            document.getElementById(
+                `ctrl-opacity-${suffix}`
+            );
+
+        if (opacityInput) {
+            opacityInput.addEventListener(
+                "input",
+                () => {
+                    const value =
+                        Number(
+                            opacityInput.value
+                        );
+
+                    if (
+                        !Number.isFinite(
+                            value
+                        )
+                    ) {
+                        return;
+                    }
+
+                    OPACITIES[status] =
+                        Math.min(
+                            1,
+                            Math.max(
+                                0,
+                                value
+                            )
+                        );
+
+                    applyPointStyle();
+                    saveStyleSettings();
+                }
+            );
+        }
     };
 
 
@@ -1338,26 +1601,6 @@ const bindNumber = (
         "ctrl-blur",
         value => {
             CIRCLE_BLUR =
-                value;
-        },
-        0,
-        1
-    );
-
-    bindNumber(
-        "ctrl-opacity",
-        value => {
-            OPACITY_DEFAULT =
-                value;
-        },
-        0,
-        1
-    );
-
-    bindNumber(
-        "ctrl-opacity-non-disp",
-        value => {
-            OPACITY_NON_DISPONIBILE =
                 value;
         },
         0,
@@ -1434,6 +1677,16 @@ function createStyleControls() {
             >
         </label>
 
+        <label class="style-checkbox-row">
+            <span>Sfondo trasparente</span>
+
+            <input
+                id="ctrl-transparent-bg"
+                type="checkbox"
+                ${MAP_TRANSPARENT ? "checked" : ""}
+            >
+        </label>
+
         ${numberControl(
             "Raggio (zoom lontano)",
             "ctrl-radius-min",
@@ -1461,46 +1714,32 @@ function createStyleControls() {
             0.01
         )}
 
-        ${numberControl(
-            "Opacità",
-            "ctrl-opacity",
-            OPACITY_DEFAULT,
-            0,
-            1,
-            0.01
-        )}
-
-        ${numberControl(
-            "Opacità non disp.",
-            "ctrl-opacity-non-disp",
-            OPACITY_NON_DISPONIBILE,
-            0,
-            1,
-            0.01
-        )}
-
         ${colorControl(
             "Buono",
             "buono",
-            COLORS.buono
+            COLORS.buono,
+            OPACITIES.buono
         )}
 
         ${colorControl(
             "Medio",
             "medio",
-            COLORS.medio
+            COLORS.medio,
+            OPACITIES.medio
         )}
 
         ${colorControl(
             "Pessimo",
             "pessimo",
-            COLORS.pessimo
+            COLORS.pessimo,
+            OPACITIES.pessimo
         )}
 
         ${colorControl(
             "Non disponibile",
             "non-disp",
-            COLORS["non disponibile"]
+            COLORS["non disponibile"],
+            OPACITIES["non disponibile"]
         )}
 
         ${BASE_COLOR_TARGETS.map(target =>
@@ -1535,6 +1774,27 @@ function createStyleControls() {
                     event.target.checked
                         ? "square"
                         : "circle"
+                );
+            }
+        );
+
+
+    /*
+     * Transparent background checkbox:
+     * unchecked = normal map (alpha = 1)
+     * checked = only points on a flat #F2F1F0 background
+     */
+    const transparentBgCheckbox =
+        document.getElementById(
+            "ctrl-transparent-bg"
+        );
+
+    transparentBgCheckbox
+        .addEventListener(
+            "change",
+            event => {
+                setMapTransparent(
+                    event.target.checked
                 );
             }
         );
@@ -1603,8 +1863,30 @@ function numberControl(
 function colorControl(
     label,
     suffix,
-    value
+    value,
+    opacity
 ) {
+    /*
+     * opacity is only passed for the status colors
+     * (buono/medio/pessimo/non disponibile). The base-map
+     * color controls call this without it, so no opacity
+     * field is rendered for those.
+     */
+    const opacityField =
+        opacity === undefined
+            ? ""
+            : `
+                <input
+                    id="ctrl-opacity-${suffix}"
+                    type="number"
+                    value="${opacity}"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    aria-label="${label}: opacità"
+                >
+            `;
+
     return `
         <label>
             <span>${label}</span>
@@ -1624,6 +1906,7 @@ function colorControl(
                     spellcheck="false"
                     aria-label="${label}: colore esadecimale"
                 >
+                ${opacityField}
             </span>
         </label>
     `;
@@ -1668,11 +1951,8 @@ function saveStyleSettings() {
                 blur:
                     CIRCLE_BLUR,
 
-                opacity:
-                    OPACITY_DEFAULT,
-
-                opacityNonDisponibile:
-                    OPACITY_NON_DISPONIBILE,
+                opacities:
+                    OPACITIES,
 
                 colors:
                     COLORS
@@ -1724,21 +2004,16 @@ function loadSavedStyleSettings() {
                 CIRCLE_BLUR
             );
 
-        OPACITY_DEFAULT =
-            readSavedNumber(
-                saved.opacity,
-                0,
-                1,
-                OPACITY_DEFAULT
-            );
-
-        OPACITY_NON_DISPONIBILE =
-            readSavedNumber(
-                saved.opacityNonDisponibile,
-                0,
-                1,
-                OPACITY_NON_DISPONIBILE
-            );
+        Object.keys(OPACITIES)
+            .forEach(status => {
+                OPACITIES[status] =
+                    readSavedNumber(
+                        saved.opacities?.[status],
+                        0,
+                        1,
+                        OPACITIES[status]
+                    );
+            });
 
         Object.keys(COLORS)
             .forEach(status => {
@@ -1787,6 +2062,79 @@ function is3dPanelEnabled() {
         localStorage.getItem(
             PANEL_3D_SETTINGS_KEY
         ) !== "false"
+    );
+}
+
+
+/*
+ * =========================================================
+ * FILTER STATE
+ * =========================================================
+ *
+ * Both dropdown filters (paesaggio and edificio) are
+ * combined into a single MapLibre "all" expression so
+ * that selecting one does not wipe out the other.
+ */
+
+const activeFilters = {
+    paesaggio: null,
+    edificio: null
+};
+
+function applyFilters(features) {
+    const conditions = [];
+
+    if (activeFilters.paesaggio) {
+        conditions.push([
+            "==",
+            ["get", "paesaggio"],
+            activeFilters.paesaggio
+        ]);
+    }
+
+    if (activeFilters.edificio) {
+        conditions.push([
+            "==",
+            ["get", "edificio"],
+            activeFilters.edificio
+        ]);
+    }
+
+    const filter =
+        conditions.length
+            ? ["all", ...conditions]
+            : null;
+
+    setPointsFilter(
+        filter
+    );
+
+    const filtered =
+        features.filter(feature => {
+            const props =
+                feature.properties;
+
+            if (
+                activeFilters.paesaggio &&
+                props.paesaggio !==
+                    activeFilters.paesaggio
+            ) {
+                return false;
+            }
+
+            if (
+                activeFilters.edificio &&
+                props.edificio !==
+                    activeFilters.edificio
+            ) {
+                return false;
+            }
+
+            return true;
+        });
+
+    fitMapToFeatures(
+        filtered
     );
 }
 
@@ -1856,42 +2204,11 @@ function createLandscapeFilter(
     select.addEventListener(
         "change",
         () => {
-            const selected =
-                select.value;
+            activeFilters.paesaggio =
+                select.value || null;
 
-            if (!selected) {
-                setPointsFilter(
-                    null
-                );
-
-                return;
-            }
-
-            const filter = [
-                "==",
-                ["get", "paesaggio"],
-                selected
-            ];
-
-            /*
-             * Apply the same filter to circles
-             * and squares.
-             */
-            setPointsFilter(
-                filter
-            );
-
-            const filtered =
-                features.filter(
-                    feature =>
-                        feature
-                            .properties
-                            .paesaggio ===
-                        selected
-                );
-
-            fitMapToFeatures(
-                filtered
+            applyFilters(
+                features
             );
         }
     );
@@ -1899,7 +2216,83 @@ function createLandscapeFilter(
 
 
 /*
- * Apply the landscape filter to both possible
+ * =========================================================
+ * BUILDING TYPE FILTER
+ * =========================================================
+ */
+
+function createBuildingTypeFilter(
+    features
+) {
+    const select =
+        document.getElementById(
+            "filter-edificio"
+        );
+
+    if (!select) {
+        console.warn(
+            "#filter-edificio not found"
+        );
+
+        return;
+    }
+
+    const values = [
+        ...new Set(
+            features
+                .map(
+                    feature =>
+                        feature
+                            .properties
+                            .edificio
+                )
+                .filter(Boolean)
+        )
+    ].sort(
+        (a, b) =>
+            a.localeCompare(
+                b,
+                "it",
+                {
+                    sensitivity:
+                        "base"
+                }
+            )
+    );
+
+    values.forEach(value => {
+        const option =
+            document.createElement(
+                "option"
+            );
+
+        option.value =
+            value;
+
+        option.textContent =
+            value;
+
+        select.appendChild(
+            option
+        );
+    });
+
+    select.addEventListener(
+        "change",
+        () => {
+            activeFilters.edificio =
+                select.value || null;
+
+            applyFilters(
+                features
+            );
+        }
+    );
+}
+
+
+/*
+ * Apply the combined filter to both possible
  * representations.
  */
 
