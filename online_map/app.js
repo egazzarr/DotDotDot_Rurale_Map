@@ -81,7 +81,7 @@ const MAP_TRANSPARENT_SETTINGS_KEY =
     "map-transparent-background";
 
 const TRANSPARENT_BACKGROUND_COLOR =
-    "#F2F1F0";
+    "#2C2A29";
 
 let MAP_TRANSPARENT =
     localStorage.getItem(
@@ -297,7 +297,7 @@ const map =
         zoom: 5,
         pitch: 10,
         bearing: 0,
-        maxPitch: 60,
+        maxPitch: 60, //otherwise i see the borders
 
         attributionControl: false,
 
