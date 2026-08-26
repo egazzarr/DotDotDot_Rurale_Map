@@ -645,6 +645,10 @@ function createMapData(
         features
     );
 
+    bindSearchId(
+        features
+    );
+
     initializeThreeCallout(
         features
     );
@@ -1655,7 +1659,16 @@ function createStyleControls() {
         "point-style-controls";
 
     panel.innerHTML = `
-        <h3>Stile punti</h3>
+
+        <label>
+            <span>Cerca ID scheda</span>
+
+            <input
+                id="ctrl-search-id"
+                type="text"
+                placeholder="id_scheda_originale"
+            >
+        </label>
 
         <label class="style-checkbox-row">
             <span>3D panel</span>
@@ -1678,7 +1691,7 @@ function createStyleControls() {
         </label>
 
         <label class="style-checkbox-row">
-            <span>Sfondo trasparente</span>
+            <span>Mappa trasparente</span>
 
             <input
                 id="ctrl-transparent-bg"
@@ -2078,26 +2091,35 @@ function is3dPanelEnabled() {
 
 const activeFilters = {
     paesaggio: null,
-    edificio: null
+    edificio: null,
+    searchId: null
 };
 
 function applyFilters(features) {
     const conditions = [];
 
-    if (activeFilters.paesaggio) {
+    if (activeFilters.searchId) {
         conditions.push([
             "==",
-            ["get", "paesaggio"],
-            activeFilters.paesaggio
+            ["get", "id"],
+            activeFilters.searchId
         ]);
-    }
+    } else {
+        if (activeFilters.paesaggio) {
+            conditions.push([
+                "==",
+                ["get", "paesaggio"],
+                activeFilters.paesaggio
+            ]);
+        }
 
-    if (activeFilters.edificio) {
-        conditions.push([
-            "==",
-            ["get", "edificio"],
-            activeFilters.edificio
-        ]);
+        if (activeFilters.edificio) {
+            conditions.push([
+                "==",
+                ["get", "edificio"],
+                activeFilters.edificio
+            ]);
+        }
     }
 
     const filter =
@@ -2113,6 +2135,10 @@ function applyFilters(features) {
         features.filter(feature => {
             const props =
                 feature.properties;
+
+            if (activeFilters.searchId) {
+                return props.id === activeFilters.searchId;
+            }
 
             if (
                 activeFilters.paesaggio &&
@@ -2282,6 +2308,46 @@ function createBuildingTypeFilter(
         () => {
             activeFilters.edificio =
                 select.value || null;
+
+            applyFilters(
+                features
+            );
+        }
+    );
+}
+
+
+/*
+ * =========================================================
+ * ID SEARCH
+ * =========================================================
+ *
+ * Typing an id_scheda_originale shows only that point and
+ * flies to it, overriding the two dropdown filters. Clearing
+ * the field goes back to whatever the dropdowns say.
+ */
+
+function bindSearchId(
+    features
+) {
+    const input =
+        document.getElementById(
+            "ctrl-search-id"
+        );
+
+    if (!input) {
+        console.warn(
+            "#ctrl-search-id not found"
+        );
+
+        return;
+    }
+
+    input.addEventListener(
+        "input",
+        () => {
+            activeFilters.searchId =
+                input.value.trim() || null;
 
             applyFilters(
                 features

@@ -35,11 +35,11 @@ window.ThreePointCallout = (() => {
     minZoom: 7, // lower it to get them show up earlier
     pitchThreshold: 30, // lower it to get ply appear at near top view
 
-    selectionDelay: 600,
+    selectionDelay: 100,
 
     maxPanels: 5,
     panelLifetimeMs: 10000,
-    fadeDurationMs: 500,
+    fadeDurationMs: 1000,
 
     panelWidth: 260,
     panelHeight: 210,
@@ -91,22 +91,30 @@ window.ThreePointCallout = (() => {
     // or the text). Two palettes, interchangeable — just
     // change duotonePalette to "rose" or "stone" any time.
     duotonePalettes: {
-      stone: { dark: "#2C2A29", light: "#F2F1F0" },
-      rose: { dark: "#807873", light: "#EAC0C0" }
+      stone: { dark: "#807873", light: "#F2F1F0"},
+      // Pink now sits at the shadow end, light stays near-
+      // white — matches wanting most of the model to read as
+      // plain light grey, with the tint only in dark areas.
+      rose: { dark: "#C98A8A", mid: "#EAC0C0", light: "#F2F1F0" }
     },
     // Master on/off switch for the duotone effect — set to
     // false to render splats with their normal colours,
     // regardless of which palette is selected above.
-    duotoneEnabled: true,
+    duotoneEnabled: false,
     duotonePalette: "stone",
-    duotoneContrast: 1.25,
-    duotoneBrightness: 0
+    duotoneContrast: 1.1,
+    duotoneBrightness: 0.3,
+
+    // Applied to every splat via mesh.opacity — 1 is fully
+    // solid, lower values add transparency.
+    modelOpacity: 0.85
   };
 
   const DuotoneShader = {
     uniforms: {
       tDiffuse: { value: null },
       darkColour: { value: new THREE.Color("#000000") },
+      midColour: { value: new THREE.Color("#808080") },
       lightColour: { value: new THREE.Color("#ffffff") },
       contrast: { value: 1 },
       brightness: { value: 0 }
@@ -121,6 +129,7 @@ window.ThreePointCallout = (() => {
     fragmentShader: `
       uniform sampler2D tDiffuse;
       uniform vec3 darkColour;
+      uniform vec3 midColour;
       uniform vec3 lightColour;
       uniform float contrast;
       uniform float brightness;
@@ -130,7 +139,9 @@ window.ThreePointCallout = (() => {
         if (source.a < 0.001) { gl_FragColor = vec4(0.0); return; }
         float lum = dot(source.rgb, vec3(0.2126, 0.7152, 0.0722));
         lum = clamp((lum - 0.5) * contrast + 0.5 + brightness, 0.0, 1.0);
-        vec3 col = mix(darkColour, lightColour, smoothstep(0.0, 1.0, lum));
+        vec3 col = lum < 0.5
+          ? mix(darkColour, midColour, smoothstep(0.0, 0.5, lum))
+          : mix(midColour, lightColour, smoothstep(0.5, 1.0, lum));
         gl_FragColor = vec4(col, source.a);
       }
     `
@@ -141,6 +152,7 @@ window.ThreePointCallout = (() => {
   const existsCache = new Map();
   const callouts = new Map();   // id -> callout
   const occupied = new Set();   // "col,row" cells in use
+  const activeSegments = new Map(); // id -> connector segment, for crossing checks
   let selectTimer, gateOpen = false;
 
   // ---------- init ----------
@@ -213,22 +225,28 @@ window.ThreePointCallout = (() => {
   function spawnCallout(feature, id, point) {
     const m = gridMetrics();
     const pc = cellFor(point.x, point.y, m);
-    const cell = findFreeCell(point.x, point.y, m, pc);
-    if (!cell) return false;
-    occupied.add(cell.key);
 
-    const dc = cell.col - pc.col, dr = cell.row - pc.row;
-    const dir = Math.abs(dc) >= Math.abs(dr) ? (dc > 0 ? "right" : "left") : (dr > 0 ? "down" : "up");
-    const rect = cellRect(cell, m);
-    const pointCellRect = cellRect(pc, m);
-    const { panelX, panelY } = placeInCell(rect, pointCellRect, point, dir, m);
+    // Preference order: straight up first, then sideways,
+    // down as a last resort. Among whichever directions have
+    // room at all, prefer one that doesn't cross an already-
+    // placed connector; only accept a crossing if literally
+    // every available direction would cross something.
+    const attempts = ["up", "left", "right", "down"]
+      .map(dir => attemptPlacement(dir, point, m, pc))
+      .filter(Boolean);
+    if (!attempts.length) return false; // no free cell in any direction
+
+    const chosen = attempts.find(a => !a.crosses) || attempts[0];
+
+    occupied.add(chosen.cell.key);
+    activeSegments.set(id, chosen.segment);
 
     // Built and positioned now, but invisible — revealed only
     // once the splat has actually finished loading (see
     // revealCallout()).
     const panel = buildPanel(feature.properties || {});
-    panel.style.left = `${panelX}px`;
-    panel.style.top = `${panelY}px`;
+    panel.style.left = `${chosen.panelX}px`;
+    panel.style.top = `${chosen.panelY}px`;
     panel.style.opacity = "0";
     map.getContainer().appendChild(panel);
 
@@ -237,11 +255,10 @@ window.ThreePointCallout = (() => {
       position: "absolute", background: CFG.connectorColor,
       zIndex: "51", pointerEvents: "none", opacity: "0"
     });
-    paintSegment(connector, connectorSegment(point.x, point.y,
-      { left: panelX, top: panelY, width: CFG.panelWidth, height: CFG.panelHeight }, dir));
+    paintSegment(connector, chosen.segment);
     map.getContainer().appendChild(connector);
 
-    const co = { id, panel, connector, cellKey: cell.key, fading: false, ready: false };
+    const co = { id, panel, connector, cellKey: chosen.cell.key, fading: false, ready: false };
     co.viewer = createViewer(panel);
     callouts.set(id, co);
 
@@ -289,6 +306,7 @@ window.ThreePointCallout = (() => {
     co.connector.remove();
     co.viewer?.dispose();
     occupied.delete(co.cellKey);
+    activeSegments.delete(co.id);
     callouts.delete(co.id);
   }
 
@@ -327,6 +345,9 @@ window.ThreePointCallout = (() => {
       const duotonePass = new ShaderPass(DuotoneShader);
       const palette = CFG.duotonePalettes[CFG.duotonePalette] || CFG.duotonePalettes.stone;
       duotonePass.uniforms.darkColour.value.set(palette.dark);
+      duotonePass.uniforms.midColour.value.set(
+        palette.mid || duotonePass.uniforms.darkColour.value.clone().lerp(new THREE.Color(palette.light), 0.5)
+      );
       duotonePass.uniforms.lightColour.value.set(palette.light);
       duotonePass.uniforms.contrast.value = CFG.duotoneContrast;
       duotonePass.uniforms.brightness.value = CFG.duotoneBrightness;
@@ -352,7 +373,7 @@ window.ThreePointCallout = (() => {
         mesh.quaternion.set(1, 0, 0, 0);
         mesh.position.set(CFG.modelOffsetX, CFG.modelOffsetY, 0);
         mesh.scale.setScalar(CFG.modelScale);
-        mesh.opacity = 1;
+        mesh.opacity = CFG.modelOpacity;
         rotationGroup.add(mesh);
       },
       render(t) {
@@ -415,7 +436,7 @@ window.ThreePointCallout = (() => {
     text(escapeHtml(title), CFG.titleFontSize, CFG.titleFontWeight, "left", "top");
     text([escapeHtml(regione), escapeHtml(secondLine)].filter(Boolean).join("<br>"),
       CFG.detailFontSize, CFG.detailFontWeight, "right", "top");
-    text(`stato di conservazione : ${escapeHtml(conservazione)}`,
+    text(`conservazione: ${escapeHtml(conservazione)}`,
       CFG.bottomFontSize, CFG.bottomFontWeight, "left", "bottom");
     text(`secolo ${escapeHtml(periodo)}`,
       CFG.bottomFontSize, CFG.bottomFontWeight, "right", "bottom");
@@ -447,17 +468,74 @@ window.ThreePointCallout = (() => {
     left: cell.col * m.cw, top: cell.row * m.ch, width: m.cw, height: m.ch
   });
 
-  function findFreeCell(px, py, m, pc) {
-    let best = null, bestD = Infinity;
-    for (let r = 0; r < m.rows; r++) for (let c = 0; c < m.cols; c++) {
-      if (c === pc.col && r === pc.row) continue;
-      const key = `${c},${r}`;
-      if (occupied.has(key)) continue;
-      const rect = cellRect({ col: c, row: r }, m);
-      const d = Math.hypot(rect.left + rect.width / 2 - px, rect.top + rect.height / 2 - py);
-      if (d < bestD) { bestD = d; best = { col: c, row: r, key }; }
+  // Nearest free cell strictly along one axis from the point's
+  // own cell — not "nearest overall", so each direction can be
+  // tried in an explicit preference order (see attemptPlacement).
+  function nearestFreeInDirection(dir, pc, m) {
+    if (dir === "up") {
+      for (let r = pc.row - 1; r >= 0; r--) {
+        const key = `${pc.col},${r}`;
+        if (!occupied.has(key)) return { col: pc.col, row: r, key };
+      }
+    } else if (dir === "down") {
+      for (let r = pc.row + 1; r < m.rows; r++) {
+        const key = `${pc.col},${r}`;
+        if (!occupied.has(key)) return { col: pc.col, row: r, key };
+      }
+    } else if (dir === "left") {
+      for (let c = pc.col - 1; c >= 0; c--) {
+        const key = `${c},${pc.row}`;
+        if (!occupied.has(key)) return { col: c, row: pc.row, key };
+      }
+    } else if (dir === "right") {
+      for (let c = pc.col + 1; c < m.cols; c++) {
+        const key = `${c},${pc.row}`;
+        if (!occupied.has(key)) return { col: c, row: pc.row, key };
+      }
     }
-    return best;
+    return null;
+  }
+
+  // Works out what placing the panel in `dir` would actually
+  // look like — cell, panel position, and the resulting
+  // connector segment — and whether that segment would cross
+  // any already-active connector. Returns null if there's no
+  // free cell at all in that direction.
+  function attemptPlacement(dir, point, m, pc) {
+    const cell = nearestFreeInDirection(dir, pc, m);
+    if (!cell) return null;
+
+    const rect = cellRect(cell, m);
+    const pointCellRect = cellRect(pc, m);
+    const { panelX, panelY } = placeInCell(rect, pointCellRect, point, dir, m);
+    const panelRect = { left: panelX, top: panelY, width: CFG.panelWidth, height: CFG.panelHeight };
+    const segment = connectorSegment(point.x, point.y, panelRect, dir);
+    const crosses = [...activeSegments.values()].some(existing => segmentsCross(segment, existing));
+
+    return { dir, cell, panelX, panelY, segment, crosses };
+  }
+
+  // Both segments are guaranteed axis-aligned (see
+  // connectorSegment), so this only needs the parallel and
+  // perpendicular cases — no general line-intersection math.
+  function segmentsCross(a, b) {
+    const aVert = a.x1 === a.x2, bVert = b.x1 === b.x2;
+
+    if (aVert && bVert) {
+      if (a.x1 !== b.x1) return false;
+      return Math.max(Math.min(a.y1, a.y2), Math.min(b.y1, b.y2))
+           < Math.min(Math.max(a.y1, a.y2), Math.max(b.y1, b.y2));
+    }
+    if (!aVert && !bVert) {
+      if (a.y1 !== b.y1) return false;
+      return Math.max(Math.min(a.x1, a.x2), Math.min(b.x1, b.x2))
+           < Math.min(Math.max(a.x1, a.x2), Math.max(b.x1, b.x2));
+    }
+
+    const v = aVert ? a : b, h = aVert ? b : a;
+    const withinX = v.x1 >= Math.min(h.x1, h.x2) && v.x1 <= Math.max(h.x1, h.x2);
+    const withinY = h.y1 >= Math.min(v.y1, v.y2) && h.y1 <= Math.max(v.y1, v.y2);
+    return withinX && withinY;
   }
 
   // Cross-axis aligned to the point so the connector stays a
@@ -465,8 +543,12 @@ window.ThreePointCallout = (() => {
   // placed flush against the edge of the POINT's own cell
   // (plus a small connectorGap) rather than centred inside the
   // far/free cell, so the connector's length reflects where
-  // the point actually is. Still clamped to stay inside the
-  // reserved free cell (rect), so panels never overlap.
+  // the point actually is. The final containment clamp is what
+  // stops the line ending "in the void": without it, the cell/
+  // viewport clamps above could occasionally push the panel far
+  // enough that the point's own coordinate fell outside the
+  // panel's span, so the connector's endpoint (aligned to that
+  // coordinate) never actually touched the panel.
   function placeInCell(rect, pointCellRect, point, dir, m) {
     const horiz = dir === "left" || dir === "right";
     const gap = CFG.connectorGap;
@@ -488,6 +570,16 @@ window.ThreePointCallout = (() => {
     y = clamp(y, rect.top + CFG.cellPadding, rect.top + rect.height - CFG.panelHeight - CFG.cellPadding);
     x = clamp(x, CFG.panelMargin, m.w - CFG.panelWidth - CFG.panelMargin);
     y = clamp(y, CFG.panelMargin, m.h - CFG.panelHeight - CFG.panelMargin);
+
+    // Guarantee the point's own coordinate stays within the
+    // panel's span on the cross axis, overriding the clamps
+    // above if they'd otherwise push it out.
+    if (horiz) {
+      y = clamp(y, point.y - CFG.panelHeight, point.y);
+    } else {
+      x = clamp(x, point.x - CFG.panelWidth, point.x);
+    }
+
     return { panelX: x, panelY: y };
   }
 
@@ -498,17 +590,21 @@ window.ThreePointCallout = (() => {
     return { x1: px, y1: py, x2: px, y2: dir === "down" ? rect.top : rect.top + rect.height };
   }
 
+  // Rounded to whole pixels — sub-pixel positions at low
+  // thickness values anti-alias horizontal vs vertical bars
+  // differently, which was making the line look thicker in
+  // one orientation than the other.
   function paintSegment(el, s) {
-    const t = CFG.connectorThickness;
+    const t = Math.round(CFG.connectorThickness);
     if (s.y1 === s.y2) {
       Object.assign(el.style, {
-        left: `${Math.min(s.x1, s.x2)}px`, top: `${s.y1 - t / 2}px`,
-        width: `${Math.abs(s.x2 - s.x1)}px`, height: `${t}px`
+        left: `${Math.round(Math.min(s.x1, s.x2))}px`, top: `${Math.round(s.y1 - t / 2)}px`,
+        width: `${Math.round(Math.abs(s.x2 - s.x1))}px`, height: `${t}px`
       });
     } else {
       Object.assign(el.style, {
-        left: `${s.x1 - t / 2}px`, top: `${Math.min(s.y1, s.y2)}px`,
-        width: `${t}px`, height: `${Math.abs(s.y2 - s.y1)}px`
+        left: `${Math.round(s.x1 - t / 2)}px`, top: `${Math.round(Math.min(s.y1, s.y2))}px`,
+        width: `${t}px`, height: `${Math.round(Math.abs(s.y2 - s.y1))}px`
       });
     }
   }
