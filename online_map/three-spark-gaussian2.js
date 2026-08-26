@@ -57,7 +57,7 @@ window.ThreePointCallout = (() => {
     // Matches four-quadrant-splats.html's MODEL_CENTRE /
     // INITIAL_CAMERA_DISTANCE.
     modelCentreZ: 0,
-    viewerDistance: 3,
+    viewerDistance: 2,
     viewerFov: 50,
     modelScale: 0.4,
 
