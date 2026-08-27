@@ -56,20 +56,20 @@ window.ThreePointCallout = (() => {
 
     // Matches four-quadrant-splats.html's MODEL_CENTRE /
     // INITIAL_CAMERA_DISTANCE.
-    modelCentreZ: 0,
+    modelCentreZ: 3,
     viewerDistance: 2,
-    viewerFov: 50,
-    modelScale: 0.4,
+    viewerFov: 40,
+    modelScale: 0.3,
 
     // Small offsets in the same units as the scene (roughly
     // -2..2 is the usable range at the default viewerDistance
     // — much bigger pushes the model outside the camera's
     // view entirely). negative X = left, positive Y = up.
-    modelOffsetX: -1,
-    modelOffsetY: .8,
+    modelOffsetX: -0.85,
+    modelOffsetY: .35,
 
-    panAmplitudeDeg: 2,
-    panSpeed: 0.5,
+    panAmplitudeDeg: 3,
+    panSpeed: 1,
 
     background: "rgba(242,241,240,0.85)",
     border: "1px solid rgba(0,0,0,0.12)",
@@ -91,7 +91,7 @@ window.ThreePointCallout = (() => {
     // or the text). Two palettes, interchangeable — just
     // change duotonePalette to "rose" or "stone" any time.
     duotonePalettes: {
-      stone: { dark: "#807873", light: "#F2F1F0"},
+      stone: { dark: "#2C2A29", light: "#807873"},
       // Pink now sits at the shadow end, light stays near-
       // white — matches wanting most of the model to read as
       // plain light grey, with the tint only in dark areas.
@@ -102,12 +102,12 @@ window.ThreePointCallout = (() => {
     // regardless of which palette is selected above.
     duotoneEnabled: false,
     duotonePalette: "stone",
-    duotoneContrast: 1.1,
-    duotoneBrightness: 0.3,
+    duotoneContrast: 0,
+    duotoneBrightness: 0,
 
     // Applied to every splat via mesh.opacity — 1 is fully
     // solid, lower values add transparency.
-    modelOpacity: 0.85
+    modelOpacity: 1
   };
 
   const DuotoneShader = {
