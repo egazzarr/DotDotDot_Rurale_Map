@@ -65,7 +65,7 @@ window.ThreePointCallout = (() => {
     // -2..2 is the usable range at the default viewerDistance
     // — much bigger pushes the model outside the camera's
     // view entirely). negative X = left, positive Y = up.
-    modelOffsetX: -0.85,
+    modelOffsetX: -0.7,
     modelOffsetY: .35,
 
     panAmplitudeDeg: 3,
