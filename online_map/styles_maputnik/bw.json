@@ -1,6 +1,6 @@
 {
   "version": 8,
-  "name": "Italy Exhibition Style (merged)",
+  "name": "Italy Exhibition Style (capitali regionali)",
   "metadata": {"maputnik:renderer": "mlgljs"},
   "terrain": {"source": "terrainSource", "exaggeration": 2},
   "sources": {
@@ -272,49 +272,6 @@
       }
     },
     {
-      "id": "place_city_town_labels",
-      "type": "symbol",
-      "source": "openmaptiles",
-      "source-layer": "place",
-      "minzoom": 3,
-      "maxzoom": 24,
-      "filter": [
-        "all",
-        ["==", ["geometry-type"], "Point"],
-        ["match", ["get", "class"], ["city", "town"], true, false]
-      ],
-      "layout": {
-        "visibility": "none",
-        "text-field": ["coalesce", ["get", "name:it"], ["get", "name"]],
-        "text-font": ["Noto Sans Regular"],
-        "text-size": [
-          "interpolate",
-          ["linear"],
-          ["zoom"],
-          4,
-          11,
-          8,
-          14,
-          12,
-          18,
-          16,
-          23
-        ],
-        "text-letter-spacing": 0.05,
-        "text-max-width": 10,
-        "text-padding": 5,
-        "text-allow-overlap": false,
-        "text-ignore-placement": false,
-        "symbol-sort-key": ["coalesce", ["get", "rank"], 99]
-      },
-      "paint": {
-        "text-color": "rgba(242, 241, 240, 1)",
-        "text-halo-color": "rgba(44, 42, 41, 0.95)",
-        "text-halo-width": 1.5,
-        "text-halo-blur": 0.5
-      }
-    },
-    {
       "id": "place_village_hamlet_labels",
       "type": "symbol",
       "source": "openmaptiles",
@@ -359,6 +316,76 @@
         "text-halo-color": "rgba(44, 42, 41, 0.95)",
         "text-halo-width": 1.25,
         "text-halo-blur": 0.5
+      }
+    },
+    {
+      "id": "place_capitali_regionali_labels",
+      "type": "symbol",
+      "source": "openmaptiles",
+      "source-layer": "place",
+      "minzoom": 8,
+      "maxzoom": 24,
+      "filter": [
+        "all",
+        ["==", ["geometry-type"], "Point"],
+        [
+          "in",
+          ["get", "name"],
+          [
+            "literal",
+            [
+              "Roma",
+              "Milano",
+              "Napoli",
+              "Torino",
+              "Palermo",
+              "Genova",
+              "Bologna",
+              "Firenze",
+              "Venezia",
+              "Bari",
+              "Catanzaro",
+              "Ancona",
+              "Perugia",
+              "L'Aquila",
+              "Cagliari",
+              "Trieste",
+              "Trento",
+              "Bolzano",
+              "Potenza",
+              "Campobasso",
+              "Aosta"
+            ]
+          ]
+        ]
+      ],
+      "layout": {
+        "visibility": "visible",
+        "text-field": ["coalesce", ["get", "name:it"], ["get", "name"]],
+        "text-font": ["MSCHN L"],
+        "text-size": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          4,
+          11,
+          8,
+          14,
+          12,
+          18,
+          16,
+          23
+        ],
+        "text-letter-spacing": 0.05,
+        "text-max-width": 10,
+        "text-padding": 5,
+        "text-allow-overlap": false,
+        "text-ignore-placement": false,
+        "symbol-sort-key": ["coalesce", ["get", "rank"], 99]
+      },
+      "paint": {
+        "text-color": "rgba(242, 241, 240, 1)",
+        "text-halo-width": 0
       }
     }
   ],
